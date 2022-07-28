@@ -1,0 +1,17 @@
+
+url: jdbc:mysql://localhost:3306/engine
+username: root
+password: testtest
+userAg: Mozilla/5.0 (Windows; U; WindowsNT 5.1; en-US; rv1.8.1.6) Gecko/20070725 Firefox/2.0.0.6
+ref: http://www.google.com
+sites:
+  - url: http://www.playback.ru
+  - url: https://volocheck.life
+  - url: http://radimov.ru
+  - url: https://ipfran.ru
+  - url: https://nikoartgallery.com
+  - url: https://et-cetera.ru/mobile
+  - url: https://www.lutherancathedral.ru
+  - url: https://www.svetlovka.ru
+
+
