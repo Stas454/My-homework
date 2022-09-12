@@ -139,29 +139,44 @@ public class SearchSystem {
 
     HashMap<Integer, Float> getPagesIdAndRelevance(List<Integer> pagesIdMatchingQuery, List<String> sortedLemmas, int siteId) throws SQLException {
 
+        ////////////////
         HashMap<Integer, Float> pagesIdAndRelevance = new HashMap<>();
         if (pagesIdMatchingQuery.size() == 0) return pagesIdAndRelevance;
 
+        HashMap<String, Integer> lemmaAndLemmaId = new HashMap<>();
+        try (PreparedStatement pstSelectLemmasId = AppSEController.dbConnection.prepareStatement(
+                "SELECT lemmas_id from lemmas WHERE lemma = ? AND sites_id = ?")) {
+            for (String lemma : sortedLemmas) {
+                pstSelectLemmasId.setString(1, lemma);
+                pstSelectLemmasId.setString(2, Integer.toString(siteId));
+                pstSelectLemmasId.addBatch();
+                ResultSet rsLemmasId = AccessToTheDB.getAccessToTheDB().executeSelection(pstSelectLemmasId);
+
+                if(rsLemmasId.next()) {
+                    lemmaAndLemmaId.put(lemma, rsLemmasId.getInt(1));
+                }
+            }
+        }
+
+        ResultSet rsRanks = null;
         try (PreparedStatement pstSelectRank = AppSEController.dbConnection.prepareStatement(
-                "SELECT pages_id, ranks FROM indexes WHERE pages_id = ? " +
-                        "AND lemmas_id = (SELECT lemmas_id from lemmas WHERE lemma = ? AND sites_id = ?) AND sites_id = ?")) {
+                "SELECT ranks FROM indexes WHERE pages_id = ? AND lemmas_id = ? AND sites_id = ?")) {
             for (int pageId : pagesIdMatchingQuery) {
                 pagesIdAndRelevance.put(pageId, 0f);
                 for (String lemma : sortedLemmas) {
                     pstSelectRank.setString(1, Integer.toString(pageId));
-                    pstSelectRank.setString(2, lemma);
+                    pstSelectRank.setString(2, Integer.toString(lemmaAndLemmaId.get(lemma)));
                     pstSelectRank.setString(3, Integer.toString(siteId));
-                    pstSelectRank.setString(4, Integer.toString(siteId));
                     pstSelectRank.addBatch();
+
+                    rsRanks = AccessToTheDB.getAccessToTheDB().executeSelection(pstSelectRank);
+                    while (rsRanks.next()) {
+                        float rank = rsRanks.getFloat(1);
+                        pagesIdAndRelevance.replace(pageId, pagesIdAndRelevance.get(pageId) + rank);
+                    }
                 }
             }
-            ResultSet rsRanks = AccessToTheDB.getAccessToTheDB().executeSelection(pstSelectRank);
-            while (rsRanks.next()) {
-                int pageId = rsRanks.getInt(1);
-                float rank = rsRanks.getFloat(2);
-                pagesIdAndRelevance.replace(pageId, pagesIdAndRelevance.get(pageId) + rank);
-            }
-            rsRanks.close();
+            if (rsRanks != null) rsRanks.close();
         }
 
         return pagesIdAndRelevance;
